@@ -151,3 +151,42 @@ body {
   padding: 5px;
   border-radius: 5px;
 }
+/* 設定グループのスタイル */
+.settings-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  width: 100%;
+}
+
+/* ボタンコンテナの調整 */
+.button-container {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  width: 100%;
+  max-width: 400px;
+  padding: 0 20px;
+}
+
+/* タイマー表示時の一時停止ボタン */
+#timerDisplay {
+  position: relative;
+  padding-bottom: 40px;
+}
+
+#pauseButton {
+  position: absolute;
+  bottom: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* ボタンのサイズ調整 */
+.button {
+  width: 100px;
+  height: 100px;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}

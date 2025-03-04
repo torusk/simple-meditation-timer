@@ -190,3 +190,19 @@ function initialize() {
 
 // 初期化実行
 initialize();
+
+// タイマー開始関数内にデバッグ出力追加
+function startTimer() {
+  // ...（既存の処理）
+
+  console.log(`開始時間設定: ${hours}時間 ${minutes}分 ${seconds}秒`);
+  console.log(`総秒数: ${remainingTime}秒`);
+}
+
+// タイマー更新関数内にデバッグ出力追加
+function updateTimerDisplay() {
+  // ...（既存の処理）
+
+  console.log(`残り時間: ${state.remainingTime}秒`);
+  console.log(`表示時間: ${elements.timeDisplay.textContent}`);
+}

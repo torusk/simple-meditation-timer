@@ -4,23 +4,34 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>瞑想タイマー</title>
+    <!-- CSSファイルの参照（public/css/配下を想定） -->
     <link rel="stylesheet" href="css/styles.css" />
   </head>
   <body>
+    <!-- メインコンテナ -->
     <div class="timer-container">
-      <!-- タイマー設定画面 -->
-      <div id="timerSetup" class="time-picker">
-        <div class="picker-column">
-          <ul class="picker-items" id="hourPicker"></ul>
-          <div class="picker-label">時間</div>
+      <!-- 設定画面グループ（時間選択 + 操作ボタン） -->
+      <div class="settings-group">
+        <!-- 時間選択ピッカー -->
+        <div id="timerSetup" class="time-picker">
+          <div class="picker-column">
+            <ul class="picker-items" id="hourPicker"></ul>
+            <div class="picker-label">時間</div>
+          </div>
+          <div class="picker-column">
+            <ul class="picker-items" id="minutePicker"></ul>
+            <div class="picker-label">分</div>
+          </div>
+          <div class="picker-column">
+            <ul class="picker-items" id="secondPicker"></ul>
+            <div class="picker-label">秒</div>
+          </div>
         </div>
-        <div class="picker-column">
-          <ul class="picker-items" id="minutePicker"></ul>
-          <div class="picker-label">分</div>
-        </div>
-        <div class="picker-column">
-          <ul class="picker-items" id="secondPicker"></ul>
-          <div class="picker-label">秒</div>
+
+        <!-- 操作ボタンコンテナ（キャンセルと開始を横並びに配置） -->
+        <div class="button-container">
+          <button id="cancelButton" class="button">キャンセル</button>
+          <button id="startButton" class="button start-button">開始</button>
         </div>
       </div>
 
@@ -29,18 +40,17 @@
         <div class="time-circle">
           <div class="timer-display" id="timeDisplay">00:00</div>
         </div>
+        <!-- 一時停止ボタン（タイマー表示画面の下部中央に配置） -->
+        <button id="pauseButton" class="button pause-button hidden">
+          一時停止
+        </button>
       </div>
     </div>
 
-    <div class="button-container">
-      <button id="cancelButton" class="button">キャンセル</button>
-      <button id="startButton" class="button start-button">開始</button>
-      <button id="pauseButton" class="button pause-button hidden">
-        一時停止
-      </button>
-    </div>
-
+    <!-- アラーム音 -->
     <audio id="alarmSound" src="sounds/alarm.mp3" preload="auto"></audio>
+
+    <!-- JavaScriptファイルの参照（public/js/配下を想定） -->
     <script src="js/script.js"></script>
   </body>
 </html>
