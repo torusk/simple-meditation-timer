@@ -6,6 +6,14 @@
     <title>Meditation Timer</title>
     <link rel="manifest" href="/manifest.json" />
     <style>
+      /* 基本設定 */
+      :root {
+        --button-size: 80vmin; /* ボタン基本サイズ（縦横同じ） */
+        --max-button-size: 500px; /* 最大サイズ制限 */
+        --active-color: #43a047; /* 動作中の色 */
+        --alarm-color: #e53935; /* アラーム色 */
+      }
+
       body {
         display: flex;
         justify-content: center;
@@ -16,11 +24,12 @@
         padding: 20px;
       }
 
+      /* タイマーボタンの基本スタイル */
       .timer-button {
-        width: 80vmin;
-        height: 80vmin;
-        max-width: 500px;
-        max-height: 500px;
+        width: var(--button-size);
+        height: var(--button-size);
+        max-width: var(--max-button-size);
+        max-height: var(--max-button-size);
         border-radius: 50%;
         border: none;
         background: linear-gradient(135deg, #c0c0c0, #e0e0e0, #c0c0c0);
@@ -31,25 +40,39 @@
         position: relative;
       }
 
+      /* ホバー時の立体効果 */
       .timer-button:hover {
         transform: translateY(2px);
         box-shadow: 0 0 15px rgba(0, 0, 0, 0.15),
           inset 0 0 8px rgba(255, 255, 255, 0.4), 0 5px 0 #d4d4d4;
       }
 
+      /* タイマー動作中のスタイル */
       .timer-button.active {
-        background: linear-gradient(135deg, #43a047, #66bb6a, #43a047);
+        background: linear-gradient(
+          135deg,
+          var(--active-color),
+          #66bb6a,
+          var(--active-color)
+        );
         box-shadow: 0 0 20px rgba(0, 0, 0, 0.2),
           inset 0 0 10px rgba(255, 255, 255, 0.5), 0 5px 0 #388e3c;
       }
 
+      /* アラーム発報時のスタイル */
       .timer-button.alarm {
-        background: linear-gradient(135deg, #e53935, #ef5350, #e53935);
+        background: linear-gradient(
+          135deg,
+          var(--alarm-color),
+          #ef5350,
+          var(--alarm-color)
+        );
         box-shadow: 0 0 20px rgba(0, 0, 0, 0.3),
           inset 0 0 10px rgba(255, 255, 255, 0.3), 0 5px 0 #c62828;
         animation: pulse 1s infinite;
       }
 
+      /* アラーム時のパルスアニメーション */
       @keyframes pulse {
         0% {
           transform: scale(1);
@@ -62,58 +85,103 @@
         }
       }
 
+      /* モバイル端末向け調整 */
       @media (max-width: 600px) {
-        .timer-button {
-          width: 90vmin;
-          height: 90vmin;
+        :root {
+          --button-size: 90vmin; /* モバイルでやや大きく */
         }
       }
     </style>
   </head>
   <body>
+    <!-- メインのタイマーボタン -->
     <button class="timer-button"></button>
 
     <script>
+      // 要素の取得
       const button = document.querySelector(".timer-button");
       const audio = new Audio("alarm.mp3");
       let timeoutId;
       let wakeLock = null;
 
-      // Service Worker登録
+      // Service Workerの登録（バックグラウンド処理用）
       if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.register("/sw.js").then((registration) => {
-          console.log("Service Worker registered");
-        });
+        navigator.serviceWorker
+          .register("/sw.js")
+          .then((registration) => {
+            console.log("Service Worker登録完了");
+          })
+          .catch((error) => {
+            console.log("Service Worker登録失敗:", error);
+          });
       }
 
-      // Wake Lock管理
+      /**
+       * Wake Lock取得関数
+       * 画面のスリープを防止する
+       */
       async function acquireWakeLock() {
         try {
           wakeLock = await navigator.wakeLock.request("screen");
+          console.log("画面スリープ防止を開始");
         } catch (err) {
-          console.error("Wake Lock error:", err);
+          console.error("Wake Lock取得失敗:", err);
         }
       }
 
+      /**
+       * タイマー終了処理
+       * アラーム発報と状態リセットを管理
+       */
       function handleTimerEnd() {
+        // アクティブ状態を解除
         button.classList.remove("active");
+
+        // アラーム状態を有効化
         button.classList.add("alarm");
+
+        // アラーム音再生
         audio.play();
-        localStorage.removeItem("timerEnd");
-        if (wakeLock) wakeLock.release();
+
+        // アラーム終了後のリセット処理
+        audio.addEventListener(
+          "ended",
+          () => {
+            button.classList.remove("alarm");
+            localStorage.removeItem("timerEnd");
+            if (wakeLock) {
+              wakeLock.release();
+              wakeLock = null;
+              console.log("画面スリープ防止を解除");
+            }
+          },
+          { once: true }
+        );
       }
 
+      // ボタンクリックイベント
       button.addEventListener("click", async () => {
         if (button.classList.contains("active")) return;
 
-        const duration = 1 * 60 * 1000; // 15分
+        // タイマー時間設定（1分 = 60,000ミリ秒）
+        const duration = 1 * 60 * 1000;
+
+        // 終了時間を保存（リロード対策）
         localStorage.setItem("timerEnd", Date.now() + duration);
+
+        // 画面スリープ防止を開始
         await acquireWakeLock();
+
+        // アクティブ状態を有効化
         button.classList.add("active");
+
+        // タイマー開始
         timeoutId = setTimeout(handleTimerEnd, duration);
       });
 
+      // ページ読み込み時の処理
       window.addEventListener("load", () => {
+        // 保存されたタイマーの復元
         const endTime = localStorage.getItem("timerEnd");
         if (endTime && Date.now() < endTime) {
           const remaining = endTime - Date.now();
@@ -122,7 +190,7 @@
           acquireWakeLock();
         }
 
-        // 音声再生初期化
+        // iOS向け音声再生初期化処理
         document.addEventListener(
           "click",
           () => {
@@ -130,6 +198,11 @@
           },
           { once: true }
         );
+      });
+
+      // ページ閉じる前のクリーンアップ
+      window.addEventListener("beforeunload", () => {
+        if (wakeLock) wakeLock.release();
       });
     </script>
   </body>
