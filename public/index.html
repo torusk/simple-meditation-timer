@@ -11,10 +11,11 @@
         background-color: white;
       }
 
+      /* ボタンのサイズを調整 */
       .timer-button {
-        width: 100px;
-        height: 100px;
-        border-radius: 50%;
+        width: 500px; /* 元のサイズ（100px）の5倍 */
+        height: 500px; /* 元のサイズ（100px）の5倍 */
+        border-radius: 50%; /* 円形を維持 */
         border: none;
         background-color: #808080;
         cursor: pointer;
@@ -22,23 +23,28 @@
         position: relative;
       }
 
+      /* アクティブ時のスタイル */
       .timer-button.active {
         background-color: #4caf50;
       }
 
+      /* アラーム時のスタイル */
       .timer-button.alarm {
         background-color: #ff0000;
       }
     </style>
   </head>
   <body>
+    <!-- タイマーボタン -->
     <button class="timer-button"></button>
 
     <script>
+      // 要素の取得
       const button = document.querySelector(".timer-button");
-      const audio = new Audio("alarm.mp3");
+      const audio = new Audio("alarm.mp3"); // 音声ファイルの読み込み
       let timeoutId;
 
+      // ボタンクリック時の処理
       button.addEventListener("click", () => {
         // グレー状態でのみ反応
         if (
@@ -47,11 +53,11 @@
         ) {
           button.classList.add("active");
 
-          // 15分後にアラーム
+          // 15分後にアラーム（テスト用に5秒に設定）
           timeoutId = setTimeout(() => {
             button.classList.remove("active");
             button.classList.add("alarm");
-            audio.play();
+            audio.play(); // 音声再生
 
             // アラーム終了後にリセット
             audio.addEventListener(
@@ -61,7 +67,7 @@
               },
               { once: true }
             );
-          }, 5 * 1 * 1000); // ５秒に変更
+          }, 5 * 1000); // 5秒（テスト用）
         }
       });
     </script>
