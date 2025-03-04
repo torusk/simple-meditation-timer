@@ -6,12 +6,11 @@
     <title>Meditation Timer</title>
     <link rel="manifest" href="/manifest.json" />
     <style>
-      /* 基本設定 */
       :root {
-        --button-size: 80vmin; /* ボタン基本サイズ（縦横同じ） */
-        --max-button-size: 500px; /* 最大サイズ制限 */
-        --active-color: #43a047; /* 動作中の色 */
-        --alarm-color: #e53935; /* アラーム色 */
+        --button-size: 80vmin;
+        --max-button-size: 500px;
+        --active-color: #43a047;
+        --alarm-color: #e53935;
       }
 
       body {
@@ -24,7 +23,6 @@
         padding: 20px;
       }
 
-      /* タイマーボタンの基本スタイル */
       .timer-button {
         width: var(--button-size);
         height: var(--button-size);
@@ -37,17 +35,14 @@
           inset 0 0 10px rgba(255, 255, 255, 0.5), 0 10px 0 #d4d4d4;
         cursor: pointer;
         transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-        position: relative;
       }
 
-      /* ホバー時の立体効果 */
       .timer-button:hover {
         transform: translateY(2px);
         box-shadow: 0 0 15px rgba(0, 0, 0, 0.15),
           inset 0 0 8px rgba(255, 255, 255, 0.4), 0 5px 0 #d4d4d4;
       }
 
-      /* タイマー動作中のスタイル */
       .timer-button.active {
         background: linear-gradient(
           135deg,
@@ -59,7 +54,6 @@
           inset 0 0 10px rgba(255, 255, 255, 0.5), 0 5px 0 #388e3c;
       }
 
-      /* アラーム発報時のスタイル */
       .timer-button.alarm {
         background: linear-gradient(
           135deg,
@@ -72,7 +66,6 @@
         animation: pulse 1s infinite;
       }
 
-      /* アラーム時のパルスアニメーション */
       @keyframes pulse {
         0% {
           transform: scale(1);
@@ -85,147 +78,109 @@
         }
       }
 
-      /* モバイル端末向け調整 */
       @media (max-width: 600px) {
         :root {
-          --button-size: 70vmin; /* モバイルでやや大きく */
+          --button-size: 90vmin;
         }
       }
     </style>
   </head>
   <body>
-    <!-- メインのタイマーボタン -->
     <button class="timer-button"></button>
 
     <script>
-      // 要素の取得（変更なし）
       const button = document.querySelector(".timer-button");
       const audio = new Audio("alarm.mp3");
       let timeoutId;
       let wakeLock = null;
+      const channel = new BroadcastChannel("timer-channel");
 
-      // Service Workerの強化（バックグラウンド同期追加）
+      // Service Worker登録
       if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.register("/sw.js").then((registration) => {
-          console.log("Service Worker登録完了");
-
-          // バックグラウンド同期の登録
-          registration.sync
-            .register("timer-sync")
-            .then(() => console.log("バックグラウンド同期登録"))
-            .catch((err) => console.error("同期登録失敗:", err));
+        navigator.serviceWorker.register("/sw.js").then((reg) => {
+          reg.sync.register("timer-sync");
+          setInterval(() => reg.active.postMessage("ping"), 30000);
         });
       }
 
-      // Wake Lockの持続的監視（追加）
-      let wakeLockReleased = false;
-      async function acquireWakeLock() {
+      // Wake Lock管理
+      async function maintainWakeLock() {
         try {
-          wakeLock = await navigator.wakeLock.request("screen");
-          wakeLock.addEventListener("release", () => {
-            wakeLockReleased = true;
-            console.log("Wake Lockが解除されました");
-          });
-          console.log("画面スリープ防止を開始");
+          if (!wakeLock) {
+            wakeLock = await navigator.wakeLock.request("screen");
+            wakeLock.addEventListener("release", () => (wakeLock = null));
+          }
         } catch (err) {
-          console.error("Wake Lock取得失敗:", err);
+          console.error("Wake Lock Error:", err);
         }
       }
 
-      // バックグラウンドチェック用のブロードキャストチャネル（追加）
-      const channel = new BroadcastChannel("timer-channel");
-      channel.onmessage = (event) => {
-        if (event.data === "check-timer") {
-          const endTime = localStorage.getItem("timerEnd");
-          if (endTime && Date.now() >= endTime) {
-            handleTimerEnd();
-          }
-        }
+      // バックグラウンドタイマーチェック
+      channel.onmessage = () => {
+        const endTime = localStorage.getItem("timerEnd");
+        if (endTime && Date.now() >= endTime) handleTimerEnd();
       };
 
-      // タイマー終了処理（改善版）
+      // タイマー処理
       function handleTimerEnd() {
-        // 状態クリア処理
-        const clearStates = () => {
-          button.classList.remove("active", "alarm");
-          localStorage.removeItem("timerEnd");
-          if (wakeLock && !wakeLockReleased) {
-            wakeLock.release();
-            wakeLock = null;
-          }
-        };
-
-        // アラーム音の再生保証
-        const playAlarm = () => {
-          audio.play().catch((err) => {
-            console.error("音声再生失敗:", err);
-            setTimeout(playAlarm, 1000);
-          });
-        };
-
         button.classList.remove("active");
         button.classList.add("alarm");
+
+        const playAlarm = () =>
+          audio.play().catch(() => setTimeout(playAlarm, 1000));
         playAlarm();
 
-        // アラーム停止処理
-        const stopAlarm = () => {
+        const reset = () => {
           audio.pause();
           audio.currentTime = 0;
-          clearStates();
+          button.classList.remove("alarm");
+          localStorage.removeItem("timerEnd");
+          if (wakeLock) wakeLock.release();
         };
 
-        // タップによる停止
-        button.addEventListener("click", stopAlarm, { once: true });
-
-        // 自動停止（1分後）
-        setTimeout(clearStates, 60000);
+        button.onclick = reset;
+        setTimeout(reset, 60000);
       }
 
-      // 残り時間計算の強化（追加）
-      function calculateRemaining() {
-        const endTime = localStorage.getItem("timerEnd");
-        if (!endTime) return 0;
-
-        const remaining = endTime - Date.now();
-        return remaining > 0 ? remaining : 0;
-      }
-
-      // ページ可視性監視（追加）
-      document.addEventListener("visibilitychange", () => {
-        if (document.visibilityState === "visible") {
-          const remaining = calculateRemaining();
-          if (remaining > 0) {
-            timeoutId = setTimeout(handleTimerEnd, remaining);
-          }
-        }
-      });
-
-      // ボタンクリックイベント（変更なし）
+      // タイマー開始
       button.addEventListener("click", async () => {
         if (button.classList.contains("active")) return;
 
         const duration = 15 * 60 * 1000;
         localStorage.setItem("timerEnd", Date.now() + duration);
-        await acquireWakeLock();
+
+        await maintainWakeLock();
         button.classList.add("active");
         timeoutId = setTimeout(handleTimerEnd, duration);
       });
 
-      // 初期化処理（強化版）
+      // 状態復元
       window.addEventListener("load", () => {
-        const remaining = calculateRemaining();
-        if (remaining > 0) {
+        const endTime = localStorage.getItem("timerEnd");
+        if (endTime > Date.now()) {
           button.classList.add("active");
-          timeoutId = setTimeout(handleTimerEnd, remaining);
-          acquireWakeLock();
+          timeoutId = setTimeout(handleTimerEnd, endTime - Date.now());
+          maintainWakeLock();
         }
 
-        // 音声初期化（iOS対応）
-        const initAudio = () => {
-          audio.play().then(() => audio.pause());
-          document.removeEventListener("click", initAudio);
-        };
-        document.addEventListener("click", initAudio, { once: true });
+        document.addEventListener(
+          "click",
+          () => {
+            audio.play().then(() => audio.pause());
+          },
+          { once: true }
+        );
+      });
+
+      // 可視性監視
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") {
+          const endTime = localStorage.getItem("timerEnd");
+          if (endTime && endTime > Date.now()) {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(handleTimerEnd, endTime - Date.now());
+          }
+        }
       });
     </script>
   </body>
