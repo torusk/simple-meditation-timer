@@ -4,53 +4,217 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>瞑想タイマー</title>
-    <!-- CSSファイルの参照（public/css/配下を想定） -->
-    <link rel="stylesheet" href="css/styles.css" />
+    <style>
+      body {
+        background-color: black;
+        color: white;
+        font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        align-items: center;
+        height: 100vh;
+        user-select: none;
+      }
+
+      .timer-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        flex-grow: 1;
+        width: 100%;
+      }
+
+      .time-picker {
+        display: flex;
+        justify-content: center;
+        background-color: #1c1c1e;
+        border-radius: 12px;
+        padding: 10px;
+        margin: 20px;
+        width: 80%;
+        max-width: 400px;
+      }
+
+      .picker-column {
+        flex: 1;
+        text-align: center;
+        position: relative;
+        height: 200px;
+        overflow-y: scroll;
+        scroll-snap-type: y mandatory;
+      }
+
+      .picker-items {
+        scroll-snap-type: y mandatory;
+        padding: 85px 0;
+      }
+
+      .picker-item {
+        scroll-snap-align: center;
+        list-style: none;
+        padding: 15px 0;
+        font-size: 1.5rem;
+        opacity: 0.3;
+        transition: all 0.2s;
+        cursor: pointer;
+      }
+
+      .picker-item.selected {
+        font-size: 2rem;
+        opacity: 1;
+      }
+
+      .button-container {
+        display: flex;
+        justify-content: space-between;
+        width: 80%;
+        max-width: 400px;
+        margin: 20px;
+      }
+
+      .button {
+        background-color: #1c1c1e;
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 100px;
+        height: 100px;
+        font-size: 1.2rem;
+        cursor: pointer;
+      }
+
+      .start-button {
+        background-color: #215a35;
+      }
+      .pause-button {
+        background-color: #7d5300;
+      }
+      .hidden {
+        display: none;
+      }
+
+      #cancelButton {
+        order: 1;
+      }
+      #startButton {
+        order: 2;
+      }
+    </style>
   </head>
   <body>
-    <!-- メインコンテナ -->
     <div class="timer-container">
-      <!-- 設定画面グループ（時間選択 + 操作ボタン） -->
-      <div class="settings-group">
-        <!-- 時間選択ピッカー -->
-        <div id="timerSetup" class="time-picker">
-          <div class="picker-column">
-            <ul class="picker-items" id="hourPicker"></ul>
-            <div class="picker-label">時間</div>
-          </div>
-          <div class="picker-column">
-            <ul class="picker-items" id="minutePicker"></ul>
-            <div class="picker-label">分</div>
-          </div>
-          <div class="picker-column">
-            <ul class="picker-items" id="secondPicker"></ul>
-            <div class="picker-label">秒</div>
-          </div>
+      <div id="timerSetup" class="time-picker">
+        <div class="picker-column">
+          <div class="picker-items" id="hourPicker"></div>
+          <div class="picker-label">時間</div>
         </div>
-
-        <!-- 操作ボタンコンテナ（キャンセルと開始を横並びに配置） -->
-        <div class="button-container">
-          <button id="cancelButton" class="button">キャンセル</button>
-          <button id="startButton" class="button start-button">開始</button>
+        <div class="picker-column">
+          <div class="picker-items" id="minutePicker"></div>
+          <div class="picker-label">分</div>
+        </div>
+        <div class="picker-column">
+          <div class="picker-items" id="secondPicker"></div>
+          <div class="picker-label">秒</div>
         </div>
       </div>
 
-      <!-- タイマー表示画面 -->
+      <div class="button-container">
+        <button id="cancelButton" class="button">キャンセル</button>
+        <button id="startButton" class="button start-button">開始</button>
+      </div>
+
       <div id="timerDisplay" class="hidden">
         <div class="time-circle">
-          <div class="timer-display" id="timeDisplay">00:00</div>
+          <div id="timeDisplay">00:00</div>
         </div>
-        <!-- 一時停止ボタン（タイマー表示画面の下部中央に配置） -->
         <button id="pauseButton" class="button pause-button hidden">
           一時停止
         </button>
       </div>
     </div>
 
-    <!-- アラーム音 -->
-    <audio id="alarmSound" src="sounds/alarm.mp3" preload="auto"></audio>
+    <script>
+      const elements = {
+        timerSetup: document.getElementById("timerSetup"),
+        timerDisplay: document.getElementById("timerDisplay"),
+        timeDisplay: document.getElementById("timeDisplay"),
+        hourPicker: document.getElementById("hourPicker"),
+        minutePicker: document.getElementById("minutePicker"),
+        secondPicker: document.getElementById("secondPicker"),
+        startButton: document.getElementById("startButton"),
+        pauseButton: document.getElementById("pauseButton"),
+        cancelButton: document.getElementById("cancelButton"),
+      };
 
-    <!-- JavaScriptファイルの参照（public/js/配下を想定） -->
-    <script src="js/script.js"></script>
+      let isDragging = false;
+      let startY = 0;
+      let currentScroll = 0;
+
+      // ピッカー生成
+      function createPicker(element, max, defaultValue = 0) {
+        for (let i = 0; i <= max; i++) {
+          const item = document.createElement("div");
+          item.className = "picker-item";
+          item.textContent = String(i).padStart(2, "0");
+          item.dataset.value = i;
+          if (i === defaultValue) item.classList.add("selected");
+          element.appendChild(item);
+        }
+      }
+
+      // スクロールイベント処理
+      function handleScroll(e) {
+        if (!isDragging) return;
+
+        const deltaY = e.touches
+          ? e.touches[0].clientY - startY
+          : e.clientY - startY;
+        this.scrollTop = currentScroll - deltaY * 1.5;
+
+        const items = this.querySelectorAll(".picker-item");
+        const centerPos = this.offsetHeight / 2;
+
+        items.forEach((item) => {
+          const itemPos =
+            item.offsetTop + item.offsetHeight / 2 - this.scrollTop;
+          if (Math.abs(centerPos - itemPos) < 15) {
+            items.forEach((i) => i.classList.remove("selected"));
+            item.classList.add("selected");
+          }
+        });
+      }
+
+      // イベントリスナー設定
+      document.querySelectorAll(".picker-column").forEach((column) => {
+        column.addEventListener("mousedown", (e) => {
+          isDragging = true;
+          startY = e.clientY;
+          currentScroll = column.scrollTop;
+        });
+
+        column.addEventListener("touchstart", (e) => {
+          isDragging = true;
+          startY = e.touches[0].clientY;
+          currentScroll = column.scrollTop;
+        });
+
+        column.addEventListener("mousemove", handleScroll);
+        column.addEventListener("touchmove", handleScroll);
+
+        document.addEventListener("mouseup", () => (isDragging = false));
+        document.addEventListener("touchend", () => (isDragging = false));
+      });
+
+      // 初期化
+      createPicker(elements.hourPicker, 23);
+      createPicker(elements.minutePicker, 59, 15);
+      createPicker(elements.secondPicker, 59);
+
+      // タイマー制御ロジック（前回の実装を継続）
+    </script>
   </body>
 </html>
