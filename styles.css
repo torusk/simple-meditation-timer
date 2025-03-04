@@ -1,0 +1,153 @@
+body {
+  background-color: black;
+  color: white;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  height: 100vh;
+  user-select: none;
+}
+
+.timer-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-grow: 1;
+}
+
+.timer-display {
+  font-size: 5rem;
+  text-align: center;
+  margin: 20px 0;
+}
+
+.time-circle {
+  border: 3px solid #ff9500;
+  border-radius: 50%;
+  width: 300px;
+  height: 300px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.time-picker {
+  display: flex;
+  justify-content: center;
+  background-color: #1c1c1e;
+  border-radius: 12px;
+  padding: 10px;
+  margin: 20px;
+  width: 80%;
+  max-width: 400px;
+}
+
+.picker-column {
+  flex: 1;
+  text-align: center;
+  position: relative;
+  height: 120px;
+  overflow: hidden;
+}
+
+.picker-label {
+  font-size: 0.8rem;
+  opacity: 0.6;
+  text-align: center;
+  margin-top: 5px;
+}
+
+.picker-items {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+}
+
+.picker-item {
+  list-style: none;
+  padding: 10px 0;
+  font-size: 1.2rem;
+  opacity: 0.3;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.picker-item.selected {
+  font-size: 1.5rem;
+  opacity: 1;
+}
+
+.button-container {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.button {
+  background-color: #1c1c1e;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 80px;
+  height: 80px;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.start-button {
+  background-color: #215a35;
+}
+
+.pause-button {
+  background-color: #7d5300;
+}
+
+.hidden {
+  display: none;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.pulse {
+  animation: pulse 1s infinite;
+}
+
+/* 新しい入力フィールド */
+.number-input {
+  background: transparent;
+  border: 1px solid #ff9500;
+  color: white;
+  font-size: 1.2rem;
+  width: 60px;
+  text-align: center;
+  margin: 5px;
+  padding: 5px;
+  border-radius: 5px;
+}
