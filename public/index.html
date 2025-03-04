@@ -88,7 +88,7 @@
       /* モバイル端末向け調整 */
       @media (max-width: 600px) {
         :root {
-          --button-size: 90vmin; /* モバイルでやや大きく */
+          --button-size: 70vmin; /* モバイルでやや大きく */
         }
       }
     </style>
@@ -164,7 +164,7 @@
         if (button.classList.contains("active")) return;
 
         // タイマー時間設定（1分 = 60,000ミリ秒）
-        const duration = 1 * 60 * 1000;
+        const duration = 15 * 60 * 1000;
 
         // 終了時間を保存（リロード対策）
         localStorage.setItem("timerEnd", Date.now() + duration);
