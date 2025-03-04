@@ -8,58 +8,81 @@
         align-items: center;
         min-height: 100vh;
         margin: 0;
-        background-color: white;
+        background-color: #f0f0f0;
+        /* レスポンシブ対応 */
+        padding: 20px;
       }
 
-      /* ボタンのサイズを調整 */
+      /* メタリックデザイン */
       .timer-button {
-        width: 500px; /* 元のサイズ（100px）の5倍 */
-        height: 500px; /* 元のサイズ（100px）の5倍 */
-        border-radius: 50%; /* 円形を維持 */
+        /* サイズを視覚単位（vw/vh）で設定 */
+        width: 80vmin; /* 縦横の小さい方に合わせる */
+        height: 80vmin;
+        max-width: 500px; /* 最大サイズ制限 */
+        max-height: 500px;
+        border-radius: 50%;
         border: none;
-        background-color: #808080;
+        /* メタリックグラデーション */
+        background: linear-gradient(135deg, #c0c0c0, #e0e0e0, #c0c0c0);
+        /* 光沢効果 */
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.2),
+          inset 0 0 10px rgba(255, 255, 255, 0.5), 0 10px 0 #d4d4d4;
         cursor: pointer;
-        transition: background-color 0.3s;
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
         position: relative;
+        /* ボタン内のテキストを中央寄せ */
+        line-height: 80vmin;
       }
 
-      /* アクティブ時のスタイル */
+      /* ホバー時の立体感 */
+      .timer-button:hover {
+        transform: translateY(2px);
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.15),
+          inset 0 0 8px rgba(255, 255, 255, 0.4), 0 5px 0 #d4d4d4;
+      }
+
+      /* アクティブ時（メタリックグリーン） */
       .timer-button.active {
-        background-color: #4caf50;
+        background: linear-gradient(135deg, #43a047, #66bb6a, #43a047);
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.2),
+          inset 0 0 10px rgba(255, 255, 255, 0.5), 0 5px 0 #388e3c;
       }
 
-      /* アラーム時のスタイル */
+      /* アラーム時（メタリックレッド） */
       .timer-button.alarm {
-        background-color: #ff0000;
+        background: linear-gradient(135deg, #e53935, #ef5350, #e53935);
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.3),
+          inset 0 0 10px rgba(255, 255, 255, 0.3), 0 5px 0 #c62828;
+      }
+
+      /* レスポンシブ対応 */
+      @media (max-width: 600px) {
+        .timer-button {
+          width: 90vmin; /* モバイルでやや大きく */
+          height: 90vmin;
+        }
       }
     </style>
   </head>
   <body>
-    <!-- タイマーボタン -->
     <button class="timer-button"></button>
 
     <script>
-      // 要素の取得
       const button = document.querySelector(".timer-button");
-      const audio = new Audio("alarm.mp3"); // 音声ファイルの読み込み
+      const audio = new Audio("alarm.mp3");
       let timeoutId;
 
-      // ボタンクリック時の処理
       button.addEventListener("click", () => {
-        // グレー状態でのみ反応
         if (
           !button.classList.contains("active") &&
           !button.classList.contains("alarm")
         ) {
           button.classList.add("active");
-
-          // 15分後にアラーム
           timeoutId = setTimeout(() => {
             button.classList.remove("active");
             button.classList.add("alarm");
-            audio.play(); // 音声再生
+            audio.play();
 
-            // アラーム終了後にリセット
             audio.addEventListener(
               "ended",
               () => {
@@ -67,7 +90,7 @@
               },
               { once: true }
             );
-          }, 15 * 60 * 1000); //ここで時間を調整！（１５分）
+          }, 15 * 60 * 1000); // ここで時間調整
         }
       });
     </script>
