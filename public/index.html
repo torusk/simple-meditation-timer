@@ -1,6 +1,10 @@
 <!DOCTYPE html>
 <html>
   <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Meditation Timer</title>
+    <link rel="manifest" href="/manifest.json" />
     <style>
       body {
         display: flex;
@@ -9,56 +13,58 @@
         min-height: 100vh;
         margin: 0;
         background-color: #f0f0f0;
-        /* レスポンシブ対応 */
         padding: 20px;
       }
 
-      /* メタリックデザイン */
       .timer-button {
-        /* サイズを視覚単位（vw/vh）で設定 */
-        width: 80vmin; /* 縦横の小さい方に合わせる */
+        width: 80vmin;
         height: 80vmin;
-        max-width: 500px; /* 最大サイズ制限 */
+        max-width: 500px;
         max-height: 500px;
         border-radius: 50%;
         border: none;
-        /* メタリックグラデーション */
         background: linear-gradient(135deg, #c0c0c0, #e0e0e0, #c0c0c0);
-        /* 光沢効果 */
         box-shadow: 0 0 20px rgba(0, 0, 0, 0.2),
           inset 0 0 10px rgba(255, 255, 255, 0.5), 0 10px 0 #d4d4d4;
         cursor: pointer;
         transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
         position: relative;
-        /* ボタン内のテキストを中央寄せ */
-        line-height: 80vmin;
       }
 
-      /* ホバー時の立体感 */
       .timer-button:hover {
         transform: translateY(2px);
         box-shadow: 0 0 15px rgba(0, 0, 0, 0.15),
           inset 0 0 8px rgba(255, 255, 255, 0.4), 0 5px 0 #d4d4d4;
       }
 
-      /* アクティブ時（メタリックグリーン） */
       .timer-button.active {
         background: linear-gradient(135deg, #43a047, #66bb6a, #43a047);
         box-shadow: 0 0 20px rgba(0, 0, 0, 0.2),
           inset 0 0 10px rgba(255, 255, 255, 0.5), 0 5px 0 #388e3c;
       }
 
-      /* アラーム時（メタリックレッド） */
       .timer-button.alarm {
         background: linear-gradient(135deg, #e53935, #ef5350, #e53935);
         box-shadow: 0 0 20px rgba(0, 0, 0, 0.3),
           inset 0 0 10px rgba(255, 255, 255, 0.3), 0 5px 0 #c62828;
+        animation: pulse 1s infinite;
       }
 
-      /* レスポンシブ対応 */
+      @keyframes pulse {
+        0% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(0.98);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+
       @media (max-width: 600px) {
         .timer-button {
-          width: 90vmin; /* モバイルでやや大きく */
+          width: 90vmin;
           height: 90vmin;
         }
       }
@@ -71,27 +77,59 @@
       const button = document.querySelector(".timer-button");
       const audio = new Audio("alarm.mp3");
       let timeoutId;
+      let wakeLock = null;
 
-      button.addEventListener("click", () => {
-        if (
-          !button.classList.contains("active") &&
-          !button.classList.contains("alarm")
-        ) {
-          button.classList.add("active");
-          timeoutId = setTimeout(() => {
-            button.classList.remove("active");
-            button.classList.add("alarm");
-            audio.play();
+      // Service Worker登録
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("/sw.js").then((registration) => {
+          console.log("Service Worker registered");
+        });
+      }
 
-            audio.addEventListener(
-              "ended",
-              () => {
-                button.classList.remove("alarm");
-              },
-              { once: true }
-            );
-          }, 15 * 60 * 1000); // ここで時間調整
+      // Wake Lock管理
+      async function acquireWakeLock() {
+        try {
+          wakeLock = await navigator.wakeLock.request("screen");
+        } catch (err) {
+          console.error("Wake Lock error:", err);
         }
+      }
+
+      function handleTimerEnd() {
+        button.classList.remove("active");
+        button.classList.add("alarm");
+        audio.play();
+        localStorage.removeItem("timerEnd");
+        if (wakeLock) wakeLock.release();
+      }
+
+      button.addEventListener("click", async () => {
+        if (button.classList.contains("active")) return;
+
+        const duration = 1 * 60 * 1000; // 15分
+        localStorage.setItem("timerEnd", Date.now() + duration);
+        await acquireWakeLock();
+        button.classList.add("active");
+        timeoutId = setTimeout(handleTimerEnd, duration);
+      });
+
+      window.addEventListener("load", () => {
+        const endTime = localStorage.getItem("timerEnd");
+        if (endTime && Date.now() < endTime) {
+          const remaining = endTime - Date.now();
+          button.classList.add("active");
+          timeoutId = setTimeout(handleTimerEnd, remaining);
+          acquireWakeLock();
+        }
+
+        // 音声再生初期化
+        document.addEventListener(
+          "click",
+          () => {
+            audio.play().then(() => audio.pause());
+          },
+          { once: true }
+        );
       });
     </script>
   </body>
