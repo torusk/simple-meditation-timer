@@ -91,16 +91,46 @@
     <script>
       const button = document.querySelector(".timer-button");
       const audio = new Audio("alarm.mp3");
+      const stages = [5, 10, 15].map((m) => m * 60 * 1000);
+      let currentStage = 0;
       let timeoutId;
       let wakeLock = null;
-      const channel = new BroadcastChannel("timer-channel");
 
-      // Service Worker登録
-      if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.register("/sw.js").then((reg) => {
-          reg.sync.register("timer-sync");
-          setInterval(() => reg.active.postMessage("ping"), 30000);
-        });
+      // タイマー制御
+      function startNextStage() {
+        const duration = stages[currentStage];
+        const endTime = Date.now() + duration;
+
+        localStorage.setItem(
+          "timerData",
+          JSON.stringify({
+            endTime,
+            currentStage,
+          })
+        );
+
+        button.classList.add("active");
+        timeoutId = setTimeout(handleStageEnd, duration);
+        maintainWakeLock();
+      }
+
+      function handleStageEnd() {
+        audio.play();
+        button.classList.replace("active", "alarm");
+
+        if (currentStage < stages.length - 1) {
+          currentStage++;
+          setTimeout(startNextStage, 2000);
+        } else {
+          setTimeout(fullReset, 2000);
+        }
+      }
+
+      function fullReset() {
+        button.classList.remove("alarm", "active");
+        localStorage.removeItem("timerData");
+        if (wakeLock) wakeLock.release();
+        currentStage = 0;
       }
 
       // Wake Lock管理
@@ -115,70 +145,33 @@
         }
       }
 
-      // バックグラウンドタイマーチェック
-      channel.onmessage = () => {
-        const endTime = localStorage.getItem("timerEnd");
-        if (endTime && Date.now() >= endTime) handleTimerEnd();
-      };
-
-      // タイマー処理
-      function handleTimerEnd() {
-        button.classList.remove("active");
-        button.classList.add("alarm");
-
-        const playAlarm = () =>
-          audio.play().catch(() => setTimeout(playAlarm, 1000));
-        playAlarm();
-
-        const reset = () => {
-          audio.pause();
-          audio.currentTime = 0;
-          button.classList.remove("alarm");
-          localStorage.removeItem("timerEnd");
-          if (wakeLock) wakeLock.release();
-        };
-
-        button.onclick = reset;
-        setTimeout(reset, 60000);
-      }
-
-      // タイマー開始
-      button.addEventListener("click", async () => {
-        if (button.classList.contains("active")) return;
-
-        const duration = 15 * 60 * 1000;
-        localStorage.setItem("timerEnd", Date.now() + duration);
-
-        await maintainWakeLock();
-        button.classList.add("active");
-        timeoutId = setTimeout(handleTimerEnd, duration);
+      // イベントリスナー
+      button.addEventListener("click", () => {
+        if (!button.classList.contains("active")) startNextStage();
       });
 
-      // 状態復元
       window.addEventListener("load", () => {
-        const endTime = localStorage.getItem("timerEnd");
-        if (endTime > Date.now()) {
+        const storedData = JSON.parse(localStorage.getItem("timerData"));
+        if (storedData && storedData.endTime > Date.now()) {
+          currentStage = storedData.currentStage;
+          timeoutId = setTimeout(
+            handleStageEnd,
+            storedData.endTime - Date.now()
+          );
           button.classList.add("active");
-          timeoutId = setTimeout(handleTimerEnd, endTime - Date.now());
           maintainWakeLock();
         }
-
-        document.addEventListener(
-          "click",
-          () => {
-            audio.play().then(() => audio.pause());
-          },
-          { once: true }
-        );
       });
 
-      // 可視性監視
       document.addEventListener("visibilitychange", () => {
         if (document.visibilityState === "visible") {
-          const endTime = localStorage.getItem("timerEnd");
-          if (endTime && endTime > Date.now()) {
+          const storedData = JSON.parse(localStorage.getItem("timerData"));
+          if (storedData && storedData.endTime > Date.now()) {
             clearTimeout(timeoutId);
-            timeoutId = setTimeout(handleTimerEnd, endTime - Date.now());
+            timeoutId = setTimeout(
+              handleStageEnd,
+              storedData.endTime - Date.now()
+            );
           }
         }
       });
