@@ -10,9 +10,9 @@
         --button-size: 80vmin;
         --max-button-size: 500px;
         --base-color: #c0c0c0;
-        --stage1-color: #00bcd4;
-        --stage2-color: #ffeb3b;
-        --stage3-color: #9c27b0;
+        --active-color: #00bcd4;
+        --mid-color: #ffeb3b;
+        --final-color: #9c27b0;
         --alarm-color: #e53935;
       }
 
@@ -33,52 +33,79 @@
         max-height: var(--max-button-size);
         border-radius: 50%;
         border: none;
-        background: linear-gradient(135deg, var(--base-color), #e0e0e0, var(--base-color));
+        background: linear-gradient(
+          135deg,
+          var(--base-color),
+          #e0e0e0,
+          var(--base-color)
+        );
         box-shadow: 0 0 20px rgba(0, 0, 0, 0.2),
           inset 0 0 10px rgba(255, 255, 255, 0.5), 0 10px 0 #d4d4d4;
         cursor: pointer;
         transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
       }
 
-      .timer-button:hover {
-        transform: translateY(2px);
-        box-shadow: 0 0 15px rgba(0, 0, 0, 0.15),
-          inset 0 0 8px rgba(255, 255, 255, 0.4), 0 5px 0 #d4d4d4;
-      }
-
-      .timer-button.stage1 {
-        background: linear-gradient(135deg, var(--stage1-color), #4dd0e1, var(--stage1-color));
+      .timer-button.active-phase1 {
+        background: linear-gradient(
+          135deg,
+          var(--active-color),
+          #4dd0e1,
+          var(--active-color)
+        );
         box-shadow: 0 0 20px rgba(0, 0, 0, 0.2),
           inset 0 0 10px rgba(255, 255, 255, 0.5), 0 5px 0 #0097a7;
       }
 
-      .timer-button.stage2 {
-        background: linear-gradient(135deg, var(--stage2-color), #fff176, var(--stage2-color));
+      .timer-button.active-phase2 {
+        background: linear-gradient(
+          135deg,
+          var(--mid-color),
+          #fff176,
+          var(--mid-color)
+        );
         box-shadow: 0 0 20px rgba(0, 0, 0, 0.2),
           inset 0 0 10px rgba(255, 255, 255, 0.5), 0 5px 0 #fdd835;
       }
 
-      .timer-button.stage3 {
-        background: linear-gradient(135deg, var(--stage3-color), #ba68c8, var(--stage3-color));
+      .timer-button.active-phase3 {
+        background: linear-gradient(
+          135deg,
+          var(--final-color),
+          #ba68c8,
+          var(--final-color)
+        );
         box-shadow: 0 0 20px rgba(0, 0, 0, 0.2),
           inset 0 0 10px rgba(255, 255, 255, 0.5), 0 5px 0 #6a1b9a;
       }
 
       .timer-button.alarm {
-        background: linear-gradient(135deg, var(--alarm-color), #ef5350, var(--alarm-color));
+        background: linear-gradient(
+          135deg,
+          var(--alarm-color),
+          #ef5350,
+          var(--alarm-color)
+        );
         box-shadow: 0 0 20px rgba(0, 0, 0, 0.3),
           inset 0 0 10px rgba(255, 255, 255, 0.3), 0 5px 0 #c62828;
         animation: pulse 1s infinite;
       }
 
       @keyframes pulse {
-        0% { transform: scale(1); }
-        50% { transform: scale(0.98); }
-        100% { transform: scale(1); }
+        0% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(0.98);
+        }
+        100% {
+          transform: scale(1);
+        }
       }
 
       @media (max-width: 600px) {
-        :root { --button-size: 90vmin; }
+        :root {
+          --button-size: 90vmin;
+        }
       }
     </style>
   </head>
@@ -86,89 +113,86 @@
     <button class="timer-button"></button>
 
     <script>
-      const button = document.querySelector('.timer-button');
-      const audio = new Audio('alarm.mp3');
-      const stages = [5, 10, 15].map(m => m * 60 * 1000);
-      let currentStage = 0;
+      const button = document.querySelector(".timer-button");
+      const audio = new Audio("alarm.mp3");
+      const interval = 5 * 60 * 1000; // 5分間隔
+      let phase = 0;
       let timeoutId;
       let wakeLock = null;
 
-      // タイマー制御
-      function startNextStage() {
-        const duration = stages[currentStage];
-        const endTime = Date.now() + duration;
-        
-        localStorage.setItem('timerData', JSON.stringify({
-          endTime,
-          currentStage
-        }));
+      function triggerAlarm() {
+        audio.play();
+        button.classList.add("alarm");
+        setTimeout(() => button.classList.remove("alarm"), 2000);
+      }
 
-        button.className = `timer-button stage${currentStage + 1}`;
-        timeoutId = setTimeout(handleStageEnd, duration);
+      function startTimer() {
+        const endTime = Date.now() + interval;
+        localStorage.setItem(
+          "timerData",
+          JSON.stringify({
+            endTime,
+            phase: phase + 1,
+          })
+        );
+
+        button.className = `timer-button active-phase${phase + 1}`;
+        timeoutId = setTimeout(handleTimerEnd, interval);
         maintainWakeLock();
       }
 
-      function handleStageEnd() {
-        audio.play();
-        button.classList.add('alarm');
+      function handleTimerEnd() {
+        triggerAlarm();
+        phase++;
 
-        setTimeout(() => {
-          button.classList.remove('alarm');
-          if (currentStage < stages.length - 1) {
-            currentStage++;
-            startNextStage();
-          } else {
-            fullReset();
-          }
-        }, 2000);
+        if (phase < 3) {
+          setTimeout(startTimer, 2000);
+        } else {
+          setTimeout(resetTimer, 2000);
+        }
       }
 
-      function fullReset() {
-        button.className = 'timer-button';
-        localStorage.removeItem('timerData');
+      function resetTimer() {
+        button.className = "timer-button";
+        localStorage.removeItem("timerData");
         if (wakeLock) wakeLock.release();
-        currentStage = 0;
+        phase = 0;
       }
 
-      // Wake Lock管理
       async function maintainWakeLock() {
         try {
           if (!wakeLock) {
-            wakeLock = await navigator.wakeLock.request('screen');
-            wakeLock.addEventListener('release', () => wakeLock = null);
+            wakeLock = await navigator.wakeLock.request("screen");
+            wakeLock.addEventListener("release", () => (wakeLock = null));
           }
-        } catch (err) { console.error('Wake Lock Error:', err); }
+        } catch (err) {
+          console.error("Wake Lock Error:", err);
+        }
       }
 
       // イベントリスナー
-      button.addEventListener('click', () => {
-        if (!button.classList.contains('stage1') && 
-            !button.classList.contains('stage2') && 
-            !button.classList.contains('stage3')) {
-          startNextStage();
-        }
+      button.addEventListener("click", () => {
+        if (phase === 0) startTimer();
       });
 
-      window.addEventListener('load', () => {
-        const storedData = JSON.parse(localStorage.getItem('timerData'));
+      window.addEventListener("load", () => {
+        const storedData = JSON.parse(localStorage.getItem("timerData"));
         if (storedData && storedData.endTime > Date.now()) {
-          currentStage = storedData.currentStage;
-          timeoutId = setTimeout(
-            handleStageEnd,
-            storedData.endTime - Date.now()
-          );
-          button.className = `timer-button stage${currentStage + 1}`;
+          phase = storedData.phase - 1;
+          const remaining = storedData.endTime - Date.now();
+          timeoutId = setTimeout(handleTimerEnd, remaining);
+          button.className = `timer-button active-phase${storedData.phase}`;
           maintainWakeLock();
         }
       });
 
-      document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') {
-          const storedData = JSON.parse(localStorage.getItem('timerData'));
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") {
+          const storedData = JSON.parse(localStorage.getItem("timerData"));
           if (storedData && storedData.endTime > Date.now()) {
             clearTimeout(timeoutId);
             timeoutId = setTimeout(
-              handleStageEnd,
+              handleTimerEnd,
               storedData.endTime - Date.now()
             );
           }
