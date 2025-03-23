@@ -56,7 +56,15 @@
   - Screen Wake Lock API
   - Service Worker
   - Web Audio API
-- **ホスティング**: Firebase Hosting (無料枠)
+- **ホスティング**: Vercel (無料枠)
+
+### デプロイ情報
+
+- **ホスティング**: Firebase から Vercel に移行
+- **デプロイ方法**: GitHub リポジトリに連携済みの Vercel で自動デプロイ
+- **デプロイ手順**:
+  1. GitHub にプッシュするだけで自動的にデプロイされます
+  2. Vercel ダッシュボードで詳細なデプロイ状況を確認できます
 
 ### 動作環境
 

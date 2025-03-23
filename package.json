@@ -1,11 +1,9 @@
 {
-  "name": "meditation-timer",
+  "name": "simple-meditation-timer",
   "version": "1.0.0",
   "description": "Simple meditation timer with one-time alarm",
   "scripts": {
-    "deploy": "firebase deploy"
+    "build": "echo 'No build step required'"
   },
-  "dependencies": {
-    "firebase-tools": "^12.0.0"
-  }
+  "dependencies": {}
 }
