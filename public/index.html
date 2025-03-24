@@ -119,6 +119,65 @@
       let phase = 0;
       let timeoutId;
       let wakeLock = null;
+      let lastCheckTime = Date.now();
+      let storedEndTime = 0;
+      let workerCreated = false;
+      
+      // 定期的なタイマーチェックを行う
+      function setupPeriodicChecks() {
+        // 1分ごとにタイマー状態をチェック（バックグラウンド対策）
+        setInterval(checkTimerStatus, 60000); 
+      }
+
+      // Web Workerの初期化
+      function initBackgroundWorker() {
+        if (!workerCreated && 'serviceWorker' in navigator) {
+          // Service Workerの登録
+          navigator.serviceWorker.register('sw.js')
+            .then(registration => {
+              console.log('Service Worker registered with scope:', registration.scope);
+              workerCreated = true;
+            })
+            .catch(error => {
+              console.error('Service Worker registration failed:', error);
+            });
+
+          // Service Workerからのメッセージを受け取る
+          navigator.serviceWorker.addEventListener('message', (event) => {
+            if (event.data === 'check-timer') {
+              checkTimerStatus();
+            }
+          });
+        }
+      }
+      
+      // タイマーの状態をチェックする関数
+      function checkTimerStatus() {
+        const storedData = JSON.parse(localStorage.getItem("timerData"));
+        const currentTime = Date.now();
+
+        console.log('Timer check at', new Date().toISOString());
+        
+        if (storedData && storedData.endTime > 0) {
+          // タイマー実行中の場合
+          if (storedData.endTime <= currentTime) {
+            // タイマー終了の場合、アラームを発報
+            console.log('Timer check: Timer ended');
+            phase = storedData.phase - 1;
+            handleTimerEnd();
+          } else if (Math.abs((storedData.endTime - currentTime) - (currentTime - lastCheckTime)) > 10000) {
+            // 10秒以上の誤差がある場合、タイマーを再調整
+            console.log('Timer check: Recalibrating timer');
+            clearTimeout(timeoutId);
+            phase = storedData.phase - 1;
+            timeoutId = setTimeout(handleTimerEnd, storedData.endTime - currentTime);
+            button.className = `timer-button active-phase${storedData.phase}`;
+            maintainWakeLock();
+          }
+        }
+        
+        lastCheckTime = currentTime;
+      }
 
       function triggerAlarm() {
         // 15分経過時(フェーズ2終了時)はアラーム音を鳴らす
@@ -147,7 +206,7 @@
             }
           }
         } else {
-          // 5分と5分経過時(フェーズ0と1終了時)はバイブレーション
+          // 5分と10分経過時(フェーズ0と1終了時)はバイブレーション
           if (navigator.vibrate) {
             // より強く長いバイブレーションパターン
             navigator.vibrate([300, 100, 300, 100, 300]);
@@ -163,23 +222,46 @@
             }
           }
         }
+        
         button.classList.add("alarm");
         setTimeout(() => button.classList.remove("alarm"), 2000);
+        
+        // バックグラウンドでの通知を試みる
+        try {
+          if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification('Meditation Timer', {
+              body: phase === 2 ? 'メディテーション完了！' : 'フェーズが完了しました',
+              icon: 'icon-192.png'
+            });
+          }
+        } catch (e) {
+          console.error('Notification error:', e);
+        }
       }
 
       function startTimer() {
         const endTime = Date.now() + interval;
+        // タイマー情報をローカルストレージに保存
         localStorage.setItem(
           "timerData",
           JSON.stringify({
             endTime,
             phase: phase + 1,
+            startTime: Date.now()
           })
         );
 
         button.className = `timer-button active-phase${phase + 1}`;
         timeoutId = setTimeout(handleTimerEnd, interval);
         maintainWakeLock();
+        
+        // タイマー開始時にService Workerを初期化
+        initBackgroundWorker();
+        
+        // バックグラウンド通知の許可を要求
+        if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+          Notification.requestPermission();
+        }
       }
 
       function handleTimerEnd() {
@@ -196,15 +278,35 @@
       function resetTimer() {
         button.className = "timer-button";
         localStorage.removeItem("timerData");
-        if (wakeLock) wakeLock.release();
+        if (wakeLock) {
+          try {
+            wakeLock.release();
+          } catch (e) {
+            console.error('WakeLock release error:', e);
+          }
+        }
+        wakeLock = null;
         phase = 0;
+        
+        // 次のタイマーのための音声の事前ロード
+        if (!audio) {
+          audio = new Audio("alarm.mp3");
+          audio.load();
+        }
       }
 
       async function maintainWakeLock() {
+        // 画面をオンにし続ける
         try {
-          if (!wakeLock) {
+          if ('wakeLock' in navigator && !wakeLock) {
             wakeLock = await navigator.wakeLock.request("screen");
-            wakeLock.addEventListener("release", () => (wakeLock = null));
+            wakeLock.addEventListener("release", () => {
+              console.log('WakeLock released');
+              wakeLock = null;
+              // WakeLockが解放されたら再取得を試みる
+              setTimeout(maintainWakeLock, 1000);
+            });
+            console.log('WakeLock acquired');
           }
         } catch (err) {
           console.error("Wake Lock Error:", err);
@@ -260,7 +362,9 @@
         clearTimeout(pressTimer);
       }
 
+      // アプリケーション起動時の処理
       window.addEventListener("load", () => {
+        // 以前のタイマー状態を復元
         const storedData = JSON.parse(localStorage.getItem("timerData"));
         if (storedData && storedData.endTime > Date.now()) {
           phase = storedData.phase - 1;
@@ -269,10 +373,16 @@
           button.className = `timer-button active-phase${storedData.phase}`;
           maintainWakeLock();
         }
+        
+        // バックグラウンド対策の初期化
+        initBackgroundWorker();
+        setupPeriodicChecks();
       });
 
+      // 画面の表示/非表示状態の変更時
       document.addEventListener("visibilitychange", () => {
         if (document.visibilityState === "visible") {
+          // 画面が表示状態に戻った時、タイマーを正確な時間で更新
           const storedData = JSON.parse(localStorage.getItem("timerData"));
           if (storedData && storedData.endTime > Date.now()) {
             clearTimeout(timeoutId);
@@ -280,7 +390,27 @@
               handleTimerEnd,
               storedData.endTime - Date.now()
             );
+            maintainWakeLock(); // WakeLockを再取得
           }
+        } else {
+          // 画面が非表示になった時、現在時刻を記録
+          lastCheckTime = Date.now();
+        }
+      });
+      
+      // ページ終了時にタイマー状態を保存
+      window.addEventListener("beforeunload", () => {
+        const storedData = JSON.parse(localStorage.getItem("timerData"));
+        if (storedData && storedData.endTime > Date.now()) {
+          console.log('Saving timer state before unload');
+          // タイマー状態を更新して保存
+          localStorage.setItem(
+            "timerData",
+            JSON.stringify({
+              ...storedData,
+              lastCheck: Date.now()
+            })
+          );
         }
       });
     </script>
