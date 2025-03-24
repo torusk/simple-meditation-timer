@@ -175,6 +175,36 @@
         if (phase === 0) startTimer();
       });
 
+      // 長押しリセット機能の追加
+      let pressTimer;
+
+      // マウスダウン/タッチスタート時の長押し検出
+      button.addEventListener("mousedown", startLongPressTimer);
+      button.addEventListener("touchstart", startLongPressTimer, { passive: true });
+
+      // マウスアップ/タッチエンド時の処理
+      button.addEventListener("mouseup", cancelLongPressTimer);
+      button.addEventListener("touchend", cancelLongPressTimer);
+
+      // 要素から離れた場合もタイマーをキャンセル
+      button.addEventListener("mouseleave", cancelLongPressTimer);
+      button.addEventListener("touchcancel", cancelLongPressTimer);
+
+      function startLongPressTimer(e) {
+        pressTimer = setTimeout(() => {
+          // 長押し時の視覚的フィードバック
+          button.classList.add("alarm");
+          setTimeout(() => {
+            resetTimer();
+            button.classList.remove("alarm");
+          }, 500);
+        }, 2000); // 2秒の長押しでリセット
+      }
+
+      function cancelLongPressTimer(e) {
+        clearTimeout(pressTimer);
+      }
+
       window.addEventListener("load", () => {
         const storedData = JSON.parse(localStorage.getItem("timerData"));
         if (storedData && storedData.endTime > Date.now()) {
