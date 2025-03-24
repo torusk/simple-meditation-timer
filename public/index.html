@@ -121,7 +121,18 @@
       let wakeLock = null;
 
       function triggerAlarm() {
-        audio.play();
+        // 15分経過時(フェーズ2終了時)はアラーム音を鳴らす
+        if (phase === 2) {
+          audio.play();
+        } else {
+          // 5分と5分経過時(フェーズ0と1終了時)はバイブレーション
+          if (navigator.vibrate) {
+            navigator.vibrate([200, 100, 200]);
+          } else {
+            // バイブレーションサポートがない場合は音を鳴らす
+            audio.play();
+          }
+        }
         button.classList.add("alarm");
         setTimeout(() => button.classList.remove("alarm"), 2000);
       }
