@@ -114,7 +114,7 @@
 
     <script>
       const button = document.querySelector(".timer-button");
-      const audio = new Audio("alarm.mp3");
+      let audio = null; // 初期化しない
       const interval = 5 * 60 * 1000; // 5分間隔
       let phase = 0;
       let timeoutId;
@@ -123,14 +123,44 @@
       function triggerAlarm() {
         // 15分経過時(フェーズ2終了時)はアラーム音を鳴らす
         if (phase === 2) {
-          audio.play();
+          // 音声の初期化と再生
+          try {
+            if (!audio) {
+              audio = new Audio("alarm.mp3");
+            }
+            const playPromise = audio.play();
+            
+            if (playPromise !== undefined) {
+              playPromise.catch(error => {
+                console.error("Audio play error:", error);
+                // 音声が再生できない場合、代わりにバイブレーション試行
+                if (navigator.vibrate) {
+                  navigator.vibrate([400, 100, 400, 100, 400]);
+                }
+              });
+            }
+          } catch (e) {
+            console.error("Audio error:", e);
+            // 音声の初期化エラー時もバイブレーションを試行
+            if (navigator.vibrate) {
+              navigator.vibrate([400, 100, 400, 100, 400]);
+            }
+          }
         } else {
           // 5分と5分経過時(フェーズ0と1終了時)はバイブレーション
           if (navigator.vibrate) {
-            navigator.vibrate([200, 100, 200]);
+            // より強く長いバイブレーションパターン
+            navigator.vibrate([300, 100, 300, 100, 300]);
           } else {
             // バイブレーションサポートがない場合は音を鳴らす
-            audio.play();
+            try {
+              if (!audio) {
+                audio = new Audio("alarm.mp3");
+              }
+              audio.play().catch(e => console.error("Audio play error:", e));
+            } catch (e) {
+              console.error("Audio error:", e);
+            }
           }
         }
         button.classList.add("alarm");
@@ -183,6 +213,20 @@
 
       // イベントリスナー
       button.addEventListener("click", () => {
+        // 音声ファイルの初期化
+        if (!audio) {
+          audio = new Audio("alarm.mp3");
+          // 音量を事前に設定しておく
+          audio.volume = 1.0;
+          // ユーザー操作後に音をロードする
+          audio.load();
+        }
+        
+        // バイブレーションのテスト
+        if (navigator.vibrate && phase === 0) {
+          navigator.vibrate(1); // 短い振動でバイブレーション権限を確認
+        }
+        
         if (phase === 0) startTimer();
       });
 
