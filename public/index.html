@@ -237,131 +237,14 @@
     <script>
       const container = document.querySelector(".timer-container");
       const button = document.querySelector(".timer-button");
-      let audio = null; // 初期化しない
+      const timerSound1 = new Audio("timer1.mp3");
+      const timerSound10 = new Audio("timer10.mp3");
       const interval = 5 * 60 * 1000; // 5分間隔
       let phase = 0;
       let timeoutId;
       let wakeLock = null;
-      let lastCheckTime = Date.now();
-      let storedEndTime = 0;
-      let workerCreated = false;
       
-      // 定期的なタイマーチェックを行う
-      function setupPeriodicChecks() {
-        // 1分ごとにタイマー状態をチェック（バックグラウンド対策）
-        setInterval(checkTimerStatus, 60000); 
-      }
-
-      // Web Workerの初期化
-      function initBackgroundWorker() {
-        if (!workerCreated && 'serviceWorker' in navigator) {
-          // Service Workerの登録
-          navigator.serviceWorker.register('sw.js')
-            .then(registration => {
-              console.log('Service Worker registered with scope:', registration.scope);
-              workerCreated = true;
-            })
-            .catch(error => {
-              console.error('Service Worker registration failed:', error);
-            });
-
-          // Service Workerからのメッセージを受け取る
-          navigator.serviceWorker.addEventListener('message', (event) => {
-            if (event.data === 'check-timer') {
-              checkTimerStatus();
-            }
-          });
-        }
-      }
-      
-      // タイマーの状態をチェックする関数
-      function checkTimerStatus() {
-        const storedData = JSON.parse(localStorage.getItem("timerData"));
-        const currentTime = Date.now();
-
-        console.log('Timer check at', new Date().toISOString());
-        
-        if (storedData && storedData.endTime > 0) {
-          // タイマー実行中の場合
-          if (storedData.endTime <= currentTime) {
-            // タイマー終了の場合、アラームを発報
-            console.log('Timer check: Timer ended');
-            phase = storedData.phase - 1;
-            handleTimerEnd();
-          } else if (Math.abs((storedData.endTime - currentTime) - (currentTime - lastCheckTime)) > 10000) {
-            // 10秒以上の誤差がある場合、タイマーを再調整
-            console.log('Timer check: Recalibrating timer');
-            clearTimeout(timeoutId);
-            phase = storedData.phase - 1;
-            timeoutId = setTimeout(handleTimerEnd, storedData.endTime - currentTime);
-            container.className = `timer-container active-phase${storedData.phase}`;
-            maintainWakeLock();
-          }
-        }
-        
-        lastCheckTime = currentTime;
-      }
-
-      function triggerAlarm() {
-        // 15分経過時(フェーズ2終了時)はアラーム音を鳴らす
-        if (phase === 2) {
-          // 音声の初期化と再生
-          try {
-            if (!audio) {
-              audio = new Audio("alarm.mp3");
-            }
-            const playPromise = audio.play();
-            
-            if (playPromise !== undefined) {
-              playPromise.catch(error => {
-                console.error("Audio play error:", error);
-                // 音声が再生できない場合、代わりにバイブレーション試行
-                if (navigator.vibrate) {
-                  navigator.vibrate([400, 100, 400, 100, 400]);
-                }
-              });
-            }
-          } catch (e) {
-            console.error("Audio error:", e);
-            // 音声の初期化エラー時もバイブレーションを試行
-            if (navigator.vibrate) {
-              navigator.vibrate([400, 100, 400, 100, 400]);
-            }
-          }
-        } else {
-          // 5分と10分経過時(フェーズ0と1終了時)はバイブレーション
-          if (navigator.vibrate) {
-            // より強く長いバイブレーションパターン
-            navigator.vibrate([300, 100, 300, 100, 300]);
-          } else {
-            // バイブレーションサポートがない場合は音を鳴らす
-            try {
-              if (!audio) {
-                audio = new Audio("alarm.mp3");
-              }
-              audio.play().catch(e => console.error("Audio play error:", e));
-            } catch (e) {
-              console.error("Audio error:", e);
-            }
-          }
-        }
-        
-        container.classList.add("alarm");
-        setTimeout(() => container.classList.remove("alarm"), 2000);
-        
-        // バックグラウンドでの通知を試みる
-        try {
-          if ('Notification' in window && Notification.permission === 'granted') {
-            new Notification('Meditation Timer', {
-              body: phase === 2 ? 'メディテーション完了！' : 'フェーズが完了しました',
-              icon: 'icon-192.png'
-            });
-          }
-        } catch (e) {
-          console.error('Notification error:', e);
-        }
-      }
-
+      // タイマー開始関数
       function startTimer() {
         const endTime = Date.now() + interval;
         // タイマー情報をローカルストレージに保存
@@ -377,16 +260,24 @@
         container.className = `timer-container active-phase${phase + 1}`;
         timeoutId = setTimeout(handleTimerEnd, interval);
         maintainWakeLock();
-        
-        // タイマー開始時にService Workerを初期化
-        initBackgroundWorker();
-        
-        // バックグラウンド通知の許可を要求
-        if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
-          Notification.requestPermission();
-        }
       }
 
+      // アラームを鳴らす関数
+      function triggerAlarm() {
+        // 15分経過時(フェーズ2終了時)は長いアラーム音
+        if (phase === 2) {
+          timerSound10.play().catch(e => console.error("Audio play error:", e));
+        } else {
+          // 5分と10分経過時(フェーズ0と1終了時)は短いアラーム音
+          timerSound1.play().catch(e => console.error("Audio play error:", e));
+        }
+        
+        // ボタンを点滅させる
+        container.classList.add("alarm");
+        setTimeout(() => container.classList.remove("alarm"), 2000);
+      }
+
+      // タイマー終了時の処理
       function handleTimerEnd() {
         triggerAlarm();
         phase++;
@@ -398,6 +289,7 @@
         }
       }
 
+      // タイマーリセット
       function resetTimer() {
         container.className = "timer-container";
         localStorage.removeItem("timerData");
@@ -410,66 +302,32 @@
         }
         wakeLock = null;
         phase = 0;
-        
-        // 次のタイマーのための音声の事前ロード
-        if (!audio) {
-          audio = new Audio("alarm.mp3");
-          audio.load();
-        }
       }
 
+      // 画面をオンに保つ
       async function maintainWakeLock() {
-        // 画面をオンにし続ける
         try {
           if ('wakeLock' in navigator && !wakeLock) {
             wakeLock = await navigator.wakeLock.request("screen");
             wakeLock.addEventListener("release", () => {
               console.log('WakeLock released');
               wakeLock = null;
-              // WakeLockが解放されたら再取得を試みる
-              setTimeout(maintainWakeLock, 1000);
             });
-            console.log('WakeLock acquired');
           }
         } catch (err) {
           console.error("Wake Lock Error:", err);
         }
       }
 
-      // イベントリスナー
+      // ボタンクリックイベント
       button.addEventListener("click", () => {
-        // 音声ファイルの初期化
-        if (!audio) {
-          audio = new Audio("alarm.mp3");
-          // 音量を事前に設定しておく
-          audio.volume = 1.0;
-          // ユーザー操作後に音をロードする
-          audio.load();
-        }
-        
-        // バイブレーションのテスト
-        if (navigator.vibrate && phase === 0) {
-          navigator.vibrate(1); // 短い振動でバイブレーション権限を確認
-        }
-        
         if (phase === 0) startTimer();
       });
 
-      // 長押しリセット機能の追加
+      // 長押しリセット機能
       let pressTimer;
 
-      // マウスダウン/タッチスタート時の長押し検出
-      button.addEventListener("mousedown", startLongPressTimer);
-      button.addEventListener("touchstart", startLongPressTimer, { passive: true });
-
-      // マウスアップ/タッチエンド時の処理
-      button.addEventListener("mouseup", cancelLongPressTimer);
-      button.addEventListener("touchend", cancelLongPressTimer);
-
-      // 要素から離れた場合もタイマーをキャンセル
-      button.addEventListener("mouseleave", cancelLongPressTimer);
-      button.addEventListener("touchcancel", cancelLongPressTimer);
-
+      // 長押し検出開始
       function startLongPressTimer(e) {
         pressTimer = setTimeout(() => {
           // 長押し時の視覚的フィードバック
@@ -481,9 +339,18 @@
         }, 2000); // 2秒の長押しでリセット
       }
 
+      // 長押し検出キャンセル
       function cancelLongPressTimer(e) {
         clearTimeout(pressTimer);
       }
+
+      // 長押し検出イベント
+      button.addEventListener("mousedown", startLongPressTimer);
+      button.addEventListener("touchstart", startLongPressTimer, { passive: true });
+      button.addEventListener("mouseup", cancelLongPressTimer);
+      button.addEventListener("touchend", cancelLongPressTimer);
+      button.addEventListener("mouseleave", cancelLongPressTimer);
+      button.addEventListener("touchcancel", cancelLongPressTimer);
 
       // アプリケーション起動時の処理
       window.addEventListener("load", () => {
@@ -496,10 +363,6 @@
           container.className = `timer-container active-phase${storedData.phase}`;
           maintainWakeLock();
         }
-        
-        // バックグラウンド対策の初期化
-        initBackgroundWorker();
-        setupPeriodicChecks();
       });
 
       // 画面の表示/非表示状態の変更時
@@ -513,27 +376,8 @@
               handleTimerEnd,
               storedData.endTime - Date.now()
             );
-            maintainWakeLock(); // WakeLockを再取得
+            maintainWakeLock();
           }
-        } else {
-          // 画面が非表示になった時、現在時刻を記録
-          lastCheckTime = Date.now();
-        }
-      });
-      
-      // ページ終了時にタイマー状態を保存
-      window.addEventListener("beforeunload", () => {
-        const storedData = JSON.parse(localStorage.getItem("timerData"));
-        if (storedData && storedData.endTime > Date.now()) {
-          console.log('Saving timer state before unload');
-          // タイマー状態を更新して保存
-          localStorage.setItem(
-            "timerData",
-            JSON.stringify({
-              ...storedData,
-              lastCheck: Date.now()
-            })
-          );
         }
       });
     </script>
