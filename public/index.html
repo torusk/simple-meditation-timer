@@ -26,67 +26,181 @@
         padding: 20px;
       }
 
-      .timer-button {
+      /* 洗練されたボタンスタイル */
+      .timer-container {
+        position: relative;
         width: var(--button-size);
         height: var(--button-size);
         max-width: var(--max-button-size);
         max-height: var(--max-button-size);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #f0f0f0;
         border-radius: 50%;
-        border: none;
+      }
+
+      /* 外側のリング効果 */
+      .outer-ring {
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
         background: linear-gradient(
           135deg,
           var(--base-color),
           #e0e0e0,
           var(--base-color)
         );
-        box-shadow: 0 0 20px rgba(0, 0, 0, 0.2),
-          inset 0 0 10px rgba(255, 255, 255, 0.5), 0 10px 0 #d4d4d4;
-        cursor: pointer;
+        opacity: 0.8;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
         transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
       }
 
-      .timer-button.active-phase1 {
+      .timer-button {
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        border: none;
+        outline: none;
+        overflow: hidden;
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        transform: scale(1);
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2), 0 5px 10px rgba(0, 0, 0, 0.1);
+      }
+
+      .timer-button:active {
+        transform: scale(0.95);
+        box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2), 0 2px 5px rgba(0, 0, 0, 0.1);
+      }
+
+      /* 基本的な銀色のグラデーション */
+      .gradient-base {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(135deg, #e0e0e0, #c0c0c0, #e0e0e0);
+      }
+
+      /* 上部の光沢効果 */
+      .highlight {
+        position: absolute;
+        inset: 0;
+        height: 50%;
+        background: linear-gradient(to bottom, rgba(255, 255, 255, 0.8), transparent);
+        opacity: 0.8;
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+      }
+
+      /* 押し込み効果を強調する内側の影 */
+      .inner-shadow {
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        opacity: 0;
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        background-color: rgba(128, 128, 128, 0.3);
+        box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.3);
+      }
+
+      /* アクティブ状態（押し込み時） */
+      .timer-button:active .highlight {
+        opacity: 0.2;
+        height: 16.67%; /* 1/6 */
+      }
+
+      .timer-button:active .inner-shadow {
+        opacity: 0.3;
+      }
+
+      .timer-button:active .depth-gradient {
+        opacity: 0.5;
+      }
+
+      /* 押し込み時の奥行き感を表現する円形のグラデーション */
+      .depth-gradient {
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        background: radial-gradient(circle at center, rgba(0, 0, 0, 0.2) 0%, rgba(0, 0, 0, 0) 70%);
+        opacity: 0;
+        transition: opacity 0.3s;
+      }
+
+      /* フェーズ別のスタイル */
+      .timer-container.active-phase1 .outer-ring {
         background: linear-gradient(
           135deg,
           var(--active-color),
           #4dd0e1,
           var(--active-color)
         );
-        box-shadow: 0 0 20px rgba(0, 0, 0, 0.2),
-          inset 0 0 10px rgba(255, 255, 255, 0.5), 0 5px 0 #0097a7;
       }
 
-      .timer-button.active-phase2 {
+      .timer-container.active-phase1 .gradient-base {
+        background: linear-gradient(
+          135deg,
+          #00bcd4,
+          #4dd0e1,
+          #00bcd4
+        );
+      }
+
+      .timer-container.active-phase2 .outer-ring {
         background: linear-gradient(
           135deg,
           var(--mid-color),
           #fff176,
           var(--mid-color)
         );
-        box-shadow: 0 0 20px rgba(0, 0, 0, 0.2),
-          inset 0 0 10px rgba(255, 255, 255, 0.5), 0 5px 0 #fdd835;
       }
 
-      .timer-button.active-phase3 {
+      .timer-container.active-phase2 .gradient-base {
+        background: linear-gradient(
+          135deg,
+          #ffeb3b,
+          #fff176,
+          #ffeb3b
+        );
+      }
+
+      .timer-container.active-phase3 .outer-ring {
         background: linear-gradient(
           135deg,
           var(--final-color),
           #ba68c8,
           var(--final-color)
         );
-        box-shadow: 0 0 20px rgba(0, 0, 0, 0.2),
-          inset 0 0 10px rgba(255, 255, 255, 0.5), 0 5px 0 #6a1b9a;
       }
 
-      .timer-button.alarm {
+      .timer-container.active-phase3 .gradient-base {
+        background: linear-gradient(
+          135deg,
+          #9c27b0,
+          #ba68c8,
+          #9c27b0
+        );
+      }
+
+      /* アラーム状態 */
+      .timer-container.alarm .outer-ring {
         background: linear-gradient(
           135deg,
           var(--alarm-color),
           #ef5350,
           var(--alarm-color)
         );
-        box-shadow: 0 0 20px rgba(0, 0, 0, 0.3),
-          inset 0 0 10px rgba(255, 255, 255, 0.3), 0 5px 0 #c62828;
+      }
+
+      .timer-container.alarm .gradient-base {
+        background: linear-gradient(
+          135deg,
+          #e53935,
+          #ef5350,
+          #e53935
+        );
+      }
+
+      .timer-container.alarm {
         animation: pulse 1s infinite;
       }
 
@@ -110,9 +224,18 @@
     </style>
   </head>
   <body>
-    <button class="timer-button"></button>
+    <div class="timer-container">
+      <div class="outer-ring"></div>
+      <button class="timer-button">
+        <div class="gradient-base"></div>
+        <div class="highlight"></div>
+        <div class="inner-shadow"></div>
+        <div class="depth-gradient"></div>
+      </button>
+    </div>
 
     <script>
+      const container = document.querySelector(".timer-container");
       const button = document.querySelector(".timer-button");
       let audio = null; // 初期化しない
       const interval = 5 * 60 * 1000; // 5分間隔
@@ -171,7 +294,7 @@
             clearTimeout(timeoutId);
             phase = storedData.phase - 1;
             timeoutId = setTimeout(handleTimerEnd, storedData.endTime - currentTime);
-            button.className = `timer-button active-phase${storedData.phase}`;
+            container.className = `timer-container active-phase${storedData.phase}`;
             maintainWakeLock();
           }
         }
@@ -223,8 +346,8 @@
           }
         }
         
-        button.classList.add("alarm");
-        setTimeout(() => button.classList.remove("alarm"), 2000);
+        container.classList.add("alarm");
+        setTimeout(() => container.classList.remove("alarm"), 2000);
         
         // バックグラウンドでの通知を試みる
         try {
@@ -251,7 +374,7 @@
           })
         );
 
-        button.className = `timer-button active-phase${phase + 1}`;
+        container.className = `timer-container active-phase${phase + 1}`;
         timeoutId = setTimeout(handleTimerEnd, interval);
         maintainWakeLock();
         
@@ -276,7 +399,7 @@
       }
 
       function resetTimer() {
-        button.className = "timer-button";
+        container.className = "timer-container";
         localStorage.removeItem("timerData");
         if (wakeLock) {
           try {
@@ -350,10 +473,10 @@
       function startLongPressTimer(e) {
         pressTimer = setTimeout(() => {
           // 長押し時の視覚的フィードバック
-          button.classList.add("alarm");
+          container.classList.add("alarm");
           setTimeout(() => {
             resetTimer();
-            button.classList.remove("alarm");
+            container.classList.remove("alarm");
           }, 500);
         }, 2000); // 2秒の長押しでリセット
       }
@@ -370,7 +493,7 @@
           phase = storedData.phase - 1;
           const remaining = storedData.endTime - Date.now();
           timeoutId = setTimeout(handleTimerEnd, remaining);
-          button.className = `timer-button active-phase${storedData.phase}`;
+          container.className = `timer-container active-phase${storedData.phase}`;
           maintainWakeLock();
         }
         
