@@ -234,18 +234,60 @@
       </button>
     </div>
 
+    <!-- 音声ファイル再生用 -->
+    <audio id="timer1Sound" src="timer1.mp3" preload="auto"></audio>
+    <audio id="timer10Sound" src="timer10.mp3" preload="auto"></audio>
+
     <script>
       const container = document.querySelector(".timer-container");
       const button = document.querySelector(".timer-button");
-      const timerSound1 = new Audio("timer1.mp3");
-      const timerSound10 = new Audio("timer10.mp3");
-      const interval = 5 * 60 * 1000; // 5分間隔
+      const timer1Sound = document.getElementById("timer1Sound");
+      const timer10Sound = document.getElementById("timer10Sound");
+      const interval = 5 * 60 * 1000; // 5分間隔（デバッグ時は短くできます）
       let phase = 0;
       let timeoutId;
       let wakeLock = null;
+      let audioInitialized = false;
+      
+      // Androidでの音声再生を確実にするための初期化
+      function initAudio() {
+        // すでに初期化済みなら何もしない
+        if (audioInitialized) return;
+        
+        // タイマー開始時に音声が再生できるようにする
+        // 短い無音を再生することでユーザーインタラクションフラグを立てる
+        timer1Sound.volume = 0.01;
+        timer10Sound.volume = 0.01;
+        
+        const playPromise1 = timer1Sound.play();
+        if (playPromise1 !== undefined) {
+          playPromise1
+            .then(() => {
+              timer1Sound.pause();
+              timer1Sound.currentTime = 0;
+              timer1Sound.volume = 1.0;
+            })
+            .catch(e => console.log("Audio initialization deferred"));
+        }
+        
+        const playPromise2 = timer10Sound.play();
+        if (playPromise2 !== undefined) {
+          playPromise2
+            .then(() => {
+              timer10Sound.pause();
+              timer10Sound.currentTime = 0;
+              timer10Sound.volume = 1.0;
+            })
+            .catch(e => console.log("Audio initialization deferred"));
+        }
+        
+        audioInitialized = true;
+      }
       
       // タイマー開始関数
       function startTimer() {
+        initAudio(); // 音声初期化
+        
         const endTime = Date.now() + interval;
         // タイマー情報をローカルストレージに保存
         localStorage.setItem(
@@ -263,17 +305,52 @@
       }
 
       // アラームを鳴らす関数
+      function playAlarmSound() {
+        return new Promise((resolve) => {
+          // 現在再生中の音声をすべて停止
+          timer1Sound.pause();
+          timer1Sound.currentTime = 0;
+          timer10Sound.pause();
+          timer10Sound.currentTime = 0;
+          
+          // フェーズに応じた音を選択
+          const soundToPlay = (phase === 2) ? timer10Sound : timer1Sound;
+          
+          // 音声再生完了時のイベントハンドラを設定
+          const onEnded = () => {
+            soundToPlay.removeEventListener('ended', onEnded);
+            resolve();
+          };
+          
+          soundToPlay.addEventListener('ended', onEnded);
+          
+          // 音量を最大に設定
+          soundToPlay.volume = 1.0;
+          
+          // 音声を再生
+          const playPromise = soundToPlay.play();
+          
+          if (playPromise !== undefined) {
+            playPromise.catch(error => {
+              console.error("音声再生エラー:", error);
+              // エラーの場合も完了とみなす
+              resolve();
+            });
+          }
+        });
+      }
+      
+      // アラーム処理
       function triggerAlarm() {
-        // 15分経過時(フェーズ2終了時)は長いアラーム音
-        if (phase === 2) {
-          timerSound10.play().catch(e => console.error("Audio play error:", e));
-        } else {
-          // 5分と10分経過時(フェーズ0と1終了時)は短いアラーム音
-          timerSound1.play().catch(e => console.error("Audio play error:", e));
-        }
-        
         // ボタンを点滅させる
         container.classList.add("alarm");
+        
+        // 音を鳴らす
+        playAlarmSound().then(() => {
+          console.log("音声再生完了");
+        });
+        
+        // 2秒後にアラームスタイルを解除
         setTimeout(() => container.classList.remove("alarm"), 2000);
       }
 
@@ -321,7 +398,10 @@
 
       // ボタンクリックイベント
       button.addEventListener("click", () => {
-        if (phase === 0) startTimer();
+        // 初期状態の場合、タイマーを開始
+        if (phase === 0) {
+          startTimer();
+        }
       });
 
       // 長押しリセット機能
